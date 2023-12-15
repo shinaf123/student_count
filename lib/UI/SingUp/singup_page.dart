@@ -1,16 +1,49 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'package:student_count/ComonUse/navigation_button.dart';
 import 'package:student_count/ComonUse/passwordfield.dart';
 import 'package:student_count/ComonUse/textfiled.dart';
 import 'package:student_count/UI/Home/home_page.dart';
 import 'package:student_count/UI/Login/login_page.dart';
+// import '../../getX/getx.dart';
 
 class SignupPage extends StatelessWidget {
   SignupPage({super.key});
 
+  static SignupPage get instance => Get.find();
+
   final _emailController = TextEditingController();
   final _passwordContrroller = TextEditingController();
+  final _ConPasswordContrroller = TextEditingController();
   final formKey = GlobalKey<FormState>();
+
+// final UserController userController = Get.lazyPut(() => userController());
+
+  FirebaseAuth auth = FirebaseAuth.instance;
+
+  loginUser({email, password}) async {
+    try {
+      await auth.signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      print(e.toString());
+    }
+  }
+
+  createUser({email, password}) async {
+    try {
+      UserCredential userCredential = await auth.createUserWithEmailAndPassword(
+          email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      print(e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,7 +52,7 @@ class SignupPage extends StatelessWidget {
       body: Center(
         child: Stack(
           children: [
-            Positioned(
+            const Positioned(
                 top: 70,
                 left: 20,
                 child: Text(
@@ -29,7 +62,7 @@ class SignupPage extends StatelessWidget {
                       fontSize: 24,
                       fontWeight: FontWeight.w700),
                 )),
-            Positioned(
+            const Positioned(
                 top: 110,
                 left: 20,
                 child: Text(
@@ -46,7 +79,7 @@ class SignupPage extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 188),
                 height: 614,
                 width: 375,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(30),
@@ -73,26 +106,36 @@ class SignupPage extends StatelessWidget {
                             "Password",
                             "Enter the password",
                             TextInputType.visiblePassword, (v) {
-                          if (v == null || v.isEmpty) {
-                            return "Please enter your correct password";
+                          RegExp regex = RegExp(r'^(?=.*?[A-Z])(?=.*?[a-z])');
+                          var passNonNullValue = v ?? "";
+                          if (passNonNullValue.isEmpty) {
+                            return ("Password is required");
+                          } else if (!regex.hasMatch(passNonNullValue)) {
+                            return ("Password should contain"
+                                "\n"
+                                "upper,lower,digit ");
                           }
                           return null;
                         }),
                         passWordtextFiled(
-                            _passwordContrroller,
+                            _ConPasswordContrroller,
                             "Conform Password",
                             "Enter the Conform password",
                             TextInputType.visiblePassword, (vv) {
-                          if (vv == null || vv.isEmpty) {
-                            return "Please enter your correct password";
-                          }
+                          if (vv!.isEmpty) return 'Empty';
+                          if (vv != _passwordContrroller.text)
+                            return 'Not Match';
                           return null;
                         }),
                         const SizedBox(
                           height: 15,
                         ),
-                        custombotton("SignUp", () {
+                        custombotton("SignUp", () async {
                           if (formKey.currentState!.validate()) {
+                            await createUser(
+                                email: _emailController.text,
+                                password: _passwordContrroller.text);
+
                             print(_emailController.text);
                             print(_passwordContrroller.text);
 
@@ -100,6 +143,8 @@ class SignupPage extends StatelessWidget {
                                 MaterialPageRoute(builder: (context) {
                               return HomePage();
                             }));
+
+                            // Get.to(HomePage());
                           }
                         }, double.infinity),
                         const SizedBox(
@@ -108,7 +153,7 @@ class SignupPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               "Already have an account!",
                               style: TextStyle(
                                   fontSize: 15,
@@ -122,7 +167,7 @@ class SignupPage extends StatelessWidget {
                                   return LoginPage();
                                 }));
                               },
-                              child: Text(
+                              child: const Text(
                                 ' Sign In',
                                 style: TextStyle(
                                     fontSize: 15,
@@ -142,5 +187,25 @@ class SignupPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      final GoogleSignInAuthentication? googleAuth =
+          await googleUser?.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth?.accessToken, idToken: googleAuth?.idToken);
+
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } on FirebaseException catch (e) {
+      final ex = TlsException(e.code);
+      throw ex.message;
+    } catch (_) {
+      const ex = TlsException();
+      throw ex.message;
+    }
   }
 }

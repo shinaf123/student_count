@@ -1,17 +1,77 @@
 import 'dart:ffi';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:student_count/ComonUse/navigation_button.dart';
 import 'package:student_count/ComonUse/passwordfield.dart';
 import 'package:student_count/ComonUse/textfiled.dart';
+import 'package:student_count/UI/Home/home_page.dart';
 import 'package:student_count/UI/SingUp/singup_page.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   LoginPage({super.key});
 
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  bool isLogin = false;
   final _passwordContrroller = TextEditingController();
+
   final _emailController = TextEditingController();
+
   final formKey1 = GlobalKey<FormState>();
+
+  final isGoogleLoading = false.obs;
+
+  FirebaseAuth auth = FirebaseAuth.instance;
+
+  loginUser({email, password}) async {
+    try {
+      var halo = await auth.signInWithEmailAndPassword(
+          email: email, password: password);
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final userids = FirebaseAuth.instance.currentUser?.uid.toString();
+      await prefs.setString('uid', userids!);
+      print(prefs.getString('uid'));
+      print(halo);
+      setState(() {
+        isLogin = true;
+      });
+      return halo;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        print('No user found for that email.');
+        return null;
+      } else if (e.code == 'wrong-password') {
+        print('Wrong password provided for that user.');
+        return null;
+      }
+
+      return null;
+    }
+  }
+
+  Future<void> googleSignIn() async {
+    try {
+      isGoogleLoading.value = true;
+      await SignupPage.instance.signInWithGoogle();
+      isGoogleLoading.value = false;
+    } catch (e) {
+      isGoogleLoading.value = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordContrroller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,10 +140,23 @@ class LoginPage extends StatelessWidget {
                         const SizedBox(
                           height: 15,
                         ),
-                        custombotton("SignIn", () {
+                        custombotton("SignIn", () async {
                           if (formKey1.currentState!.validate()) {
+                            await loginUser(
+                                email: _emailController.text,
+                                password: _passwordContrroller.text);
+
                             print(_emailController.text);
                             print(_passwordContrroller.text);
+
+                            if (isLogin) {
+                              return Navigator.push(context,
+                                  MaterialPageRoute(builder: (context) {
+                                return HomePage();
+                              }));
+                            } else {
+                              return print("error");
+                            }
                           }
                         }, double.infinity),
                         const SizedBox(
@@ -119,7 +192,11 @@ class LoginPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             GestureDetector(
-                              onTap: () {},
+                              onTap: () {
+                                setState(() {
+                                  googleSignIn();
+                                });
+                              },
                               child: Container(
                                 height: 56,
                                 width: 70,

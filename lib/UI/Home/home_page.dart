@@ -1,9 +1,30 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:student_count/UI/Home/student_details.dart';
+import 'package:student_count/UI/Login/login_page.dart';
+import 'package:student_count/UI/SingUp/singup_page.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  HomePage({
+    super.key,
+  });
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool passwordVisible = false;
+
+  @override
+  void InitState1() {
+    super.initState();
+    passwordVisible = true;
+  }
+
+  var searchName = '';
+  // final emailCon;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,8 +37,13 @@ class HomePage extends StatelessWidget {
         child: FloatingActionButton.extended(
           backgroundColor: Colors.blue,
           onPressed: () {
+            // Get.to(StudentDetails());
+            // print(use)
             Navigator.push(context, MaterialPageRoute(builder: (context) {
-              return StudentDetails();
+              return StudentDetails(
+                  // emailContro: emailCon,
+                  // passContro: passCon,
+                  );
             }));
           },
           label: Text(
@@ -36,29 +62,51 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: SizedBox(
-                  height: 55,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: "Search student...",
-                      prefixIcon: Icon(Icons.search_sharp),
-                      prefixIconColor: Colors.black,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 0, 0, 0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                          color: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      height: 55,
+                      width: 305,
+                      child: TextField(
+                        onChanged: (value) {
+                          setState(() {
+                            searchName = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: "Search student...",
+                          prefixIcon: Icon(Icons.search_sharp),
+                          prefixIconColor: Colors.black,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: const BorderSide(
+                                color: Color.fromARGB(255, 0, 0, 0)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Colors.black,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                  ),
+                    IconButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(context,
+                              MaterialPageRoute(builder: (context) {
+                            return SignupPage();
+                          }));
+                        },
+                        icon: Icon(
+                          Icons.logout,
+                          size: 39,
+                          color: Colors.white,
+                        ))
+                  ],
                 ),
               ),
               Center(
@@ -73,38 +121,74 @@ class HomePage extends StatelessWidget {
                           topRight: Radius.circular(30))),
                   child: SizedBox(
                     height: 400,
-                    child: ListView.builder(itemBuilder: (BuildContext, index) {
-                      return Padding(
-                        padding: const EdgeInsets.all(6.0),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 35,
-                                  backgroundColor: Colors.black,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Shinaf Muhammad",
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500),
+                    child: StreamBuilder(
+                        stream: FirebaseFirestore.instance
+                            .collection("Details")
+                            .orderBy("Firstname")
+                            .startAt([searchName]).endAt(
+                                [searchName + "\uf8ff"]).snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return const Text("Connection error");
+                          }
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          var docs = snapshot.data!.docs;
+
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ListView.builder(
+                                physics: BouncingScrollPhysics(),
+                                itemCount: docs.length,
+                                itemBuilder: (BuildContext, index) {
+                                  var data = snapshot.data!.docs[index];
+
+                                  return Padding(
+                                    padding: const EdgeInsets.all(6.0),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 65,
+                                              height: 65,
+                                              decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  image: DecorationImage(
+                                                      image: NetworkImage(
+                                                          data["Image"]),
+                                                      fit: BoxFit.cover)),
+                                            ),
+                                            SizedBox(
+                                              width: 10,
+                                            ),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  data["Firstname"],
+                                                  style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w500),
+                                                ),
+                                                Text(data["Age"])
+                                              ],
+                                            )
+                                          ],
+                                        )
+                                      ],
                                     ),
-                                    Text("Age:16")
-                                  ],
-                                )
-                              ],
-                            )
-                          ],
-                        ),
-                      );
-                    }),
+                                  );
+                                }),
+                          );
+                        }),
                   ),
                 ),
               )
@@ -112,47 +196,6 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-      // body: Center(
-      //   child: Stack(
-      //     children: [
-      //       Positioned(
-      //           top: 20,
-      //           child: TextField(
-      //             decoration: InputDecoration(
-      //               filled: true,
-      //               fillColor: Colors.white,
-      //               prefix: const Icon(
-      //                 Icons.search_sharp,
-      //                 color: Color.fromARGB(255, 12, 12, 12),
-      //               ),
-      //               enabledBorder: OutlineInputBorder(
-      //                 borderRadius: BorderRadius.circular(10),
-      //                 borderSide:
-      //                     const BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
-      //               ),
-      //               focusedBorder: OutlineInputBorder(
-      //                 borderSide: const BorderSide(
-      //                   color: Colors.black,
-      //                 ),
-      //                 borderRadius: BorderRadius.circular(10),
-      //               ),
-      //             ),
-      //           )),
-      //       Center(
-      //         child: Container(
-      //           margin: EdgeInsets.only(top: 150),
-      //           height: 614,
-      //           width: 375,
-      //           decoration: BoxDecoration(
-      //               color: Colors.white,
-      //               borderRadius: BorderRadius.only(
-      //                   topLeft: Radius.circular(30),
-      //                   topRight: Radius.circular(30))),
-      //         ),
-      //       )
-      //     ],
-      //   ),
-      // ),
     );
   }
 }
